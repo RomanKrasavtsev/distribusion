@@ -3,6 +3,7 @@
 require 'net/http'
 require 'json'
 require 'zip'
+require 'csv'
 
 class Matrix
   START_URL = "http://challenge.distribusion.com/the_one"
@@ -15,6 +16,19 @@ class Matrix
     @source_type = "sentinels"
 
     sentinels_routes = routes
+    first_node = CSV.parse(sentinels_routes.gsub(/"/, ""))[1]
+    second_node = CSV.parse(sentinels_routes.gsub(/"/, ""))[2]
+
+    start_node = first_node[1].strip
+    end_node = second_node[1].strip
+    start_time = first_node[3].strip
+    end_time = second_node[3].strip
+
+    result = import_route(start_node, end_node, start_time, end_time)
+
+    eval(result).each do |key, value|
+      puts "#{key} #{value}"
+    end
   end
 
   private
@@ -68,6 +82,26 @@ class Matrix
 
     File.delete(file.path)
     content
+  end
+
+  def utc(date_time)
+    DateTime.parse(date_time).to_time.utc.strftime("%Y-%m-%dT%H:%M:%S").to_s
+  end
+
+  def import_route(start_node, end_node, start_time, end_time)
+    uri = URI(ROUTES_URL)
+
+    response = Net::HTTP.post_form(
+      uri,
+      passphrase: @passphrase,
+      source: @source_type,
+      start_node: start_node,
+      end_node: end_node,
+      start_time: utc(start_time),
+      end_time: utc(end_time)
+    )
+
+    response.body.force_encoding('UTF-8')
   end
 end
 
